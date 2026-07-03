@@ -147,6 +147,9 @@ async def _index_file(
                     last_indexed_at=now,
                     stale_since=None,
                 )
+                # 兜底：内容未变但缺失分块（旧版 bug 遗留），补写分块
+                if not await _has_chunks(svc, ws_id, existing["id"]) and content and content.strip():
+                    await _save_chunks_for_doc(svc, ws_id, existing["id"], content)
                 return existing["id"]
 
             # 内容变了 → 更新
@@ -239,6 +242,17 @@ async def _save_chunks_for_doc(
                 ),
             )
         await db.commit()
+
+
+async def _has_chunks(svc: "LocalWikiService", ws_id: str, doc_id: str) -> bool:
+    """检查文档是否已有分块（用于兜底修复旧版 bug 遗留的空 chunk）。"""
+    db = await svc._get_db(ws_id)
+    cursor = await db.execute(
+        "SELECT COUNT(*) as cnt FROM document_chunks WHERE document_id = ?",
+        (doc_id,),
+    )
+    row = await cursor.fetchone()
+    return (row[0] if row else 0) > 0
     try:
         fp = Path(file_path)
         relative_path = str(fp.relative_to(workspace)).replace("\\", "/")
