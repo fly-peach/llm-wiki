@@ -24,6 +24,10 @@ web/node_modules/
 web/dist/
 web/.next/
 
+# Build artifacts
+.vite/
+api/static/
+
 # Extension
 extension/dist/
 extension/node_modules/

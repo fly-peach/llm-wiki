@@ -16,11 +16,39 @@ from __future__ import annotations
 import argparse
 import asyncio
 import os
+import socket
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).absolute().parent
 API_DIR = ROOT / "api"
+
+
+def _get_lan_ip() -> str:
+    """获取本机局域网 IPv4 地址（优先取非回环的私网地址）。"""
+    try:
+        # 方法 1：连接到外部地址获取实际使用的网卡 IP（不实际发包）
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.settimeout(0.1)
+        # 不需要真正连通，只是获取路由表决定的本地地址
+        s.connect(("10.255.255.255", 1))
+        ip = s.getsockname()[0]
+        s.close()
+        if ip and not ip.startswith("127."):
+            return ip
+    except OSError:
+        pass
+
+    # 方法 2：回退到遍历所有网卡
+    try:
+        for name, addr in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET):
+            ip = addr[0]
+            if ip and not ip.startswith("127."):
+                return ip
+    except OSError:
+        pass
+
+    return ""
 
 
 def set_env(prod: bool = False) -> dict:
@@ -41,11 +69,13 @@ async def start_api(port: int = 8000, prod: bool = False):
     await uvicorn.Server(config).serve()
 
 
-def show_mcp():
+def show_mcp(port: int, lan_ip: str = ""):
     print()
     print("── MCP Server（fastapi-mcp，同进程 HTTP）──")
-    print("  端点:   http://localhost:8000/mcp")
-    print("  客户端:  url = http://localhost:8000/mcp")
+    print(f"  本机:   http://localhost:{port}/mcp")
+    if lan_ip:
+        print(f"  局域网: http://{lan_ip}:{port}/mcp")
+    print(f"  客户端: url = http://localhost:{port}/mcp")
     print("  （无需单独起 MCP 进程，复用 REST 接口）")
     print()
 
@@ -56,21 +86,28 @@ async def main():
     p.add_argument("--port", type=int, default=8000)
     args = p.parse_args()
 
+    lan_ip = _get_lan_ip()
+
     if args.prod:
-        print("=" * 50)
+        print("=" * 55)
         print("  LLM Wiki — Production")
-        print(f"  http://localhost:{args.port}")
-        print("=" * 50)
+        print(f"  本机:   http://localhost:{args.port}")
+        if lan_ip:
+            print(f"  局域网: http://{lan_ip}:{args.port}")
+        print("=" * 55)
+        show_mcp(args.port, lan_ip)
         await start_api(args.port, prod=True)
         return
 
-    print("=" * 50)
+    print("=" * 55)
     print("  LLM Wiki — Development")
     print(f"  API:     http://localhost:{args.port}")
+    if lan_ip:
+        print(f"  局域网:  http://{lan_ip}:{args.port}")
     print(f"  Swagger: http://localhost:{args.port}/docs")
     print(f"  前端:     cd web && npm run dev")
-    print("=" * 50)
-    show_mcp()
+    print("=" * 55)
+    show_mcp(args.port, lan_ip)
     await start_api(args.port)
 
 
