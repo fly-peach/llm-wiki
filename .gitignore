@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+.env
+
+
+# IDE
+.vscode/settings.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Workspace data
+.llmwiki/
+*.db
+*.db-journal
+*.db-wal
+
+# Node
+web/node_modules/
+web/dist/
+web/.next/
+
+# Extension
+extension/dist/
+extension/node_modules/
+
+# Test
+.pytest_cache/
+htmlcov/

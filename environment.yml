@@ -1,0 +1,12 @@
+name: llmwiki
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.12
+  - pip
+  - pip:
+    - fastapi
+    - uvicorn
+    - aiosqlite
+    - pydantic-settings

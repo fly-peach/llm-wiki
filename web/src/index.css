@@ -1,0 +1,299 @@
+@import "highlight.js/styles/github.css";
+
+/* ── 设计 Token ─────────────────────────────────── */
+:root {
+    --llm-indigo: #4f46e5;
+    --llm-indigo-light: #eef2ff;
+    --llm-raw: #1677ff;
+    --llm-wiki: #52c41a;
+    --llm-asset: #fa8c16;
+    --llm-bg: #f5f6f8;
+    --llm-surface: #ffffff;
+    --llm-border: #ececf0;
+    --llm-text: #1f2329;
+    --llm-text-2: #646a73;
+    --llm-text-3: #8f959e;
+    --llm-status-ready: #52c41a;
+    --llm-status-pending: #8c8c8c;
+    --llm-status-processing: #1677ff;
+    --llm-status-failed: #ff4d4f;
+    --llm-status-stale: #faad14;
+}
+
+body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+        "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--llm-bg);
+    color: var(--llm-text);
+}
+
+* {
+    box-sizing: border-box;
+}
+
+/* 滚动条美化 */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+::-webkit-scrollbar-thumb {
+    background: #d0d0d4;
+    border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #b0b0b6;
+}
+
+mark.search-hit {
+    background: #ffe58f;
+    color: inherit;
+    padding: 0 2px;
+    border-radius: 2px;
+    font-weight: 600;
+}
+
+/* ── Wiki 正文排版 ───────────────────────────────── */
+.wiki-prose {
+    color: var(--llm-text);
+    font-size: 15px;
+    line-height: 1.8;
+    max-width: 780px;
+}
+
+.wiki-prose > :first-child {
+    margin-top: 0;
+}
+
+.wiki-prose h1,
+.wiki-prose h2,
+.wiki-prose h3,
+.wiki-prose h4 {
+    margin: 1.6em 0 0.6em;
+    line-height: 1.3;
+    font-weight: 650;
+    scroll-margin-top: 16px;
+}
+
+.wiki-prose h1 {
+    font-size: 1.7em;
+    border-bottom: 1px solid var(--llm-border);
+    padding-bottom: 0.3em;
+}
+.wiki-prose h2 {
+    font-size: 1.4em;
+}
+.wiki-prose h3 {
+    font-size: 1.18em;
+}
+.wiki-prose h4 {
+    font-size: 1.02em;
+    color: var(--llm-text-2);
+}
+
+.wiki-prose p {
+    margin: 0.7em 0;
+}
+
+.wiki-prose a {
+    color: var(--llm-indigo);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+}
+.wiki-prose a:hover {
+    border-bottom-color: var(--llm-indigo);
+}
+
+.wiki-prose ul,
+.wiki-prose ol {
+    padding-left: 1.6em;
+    margin: 0.6em 0;
+}
+.wiki-prose li {
+    margin: 0.25em 0;
+}
+.wiki-prose li > p {
+    margin: 0.3em 0;
+}
+
+.wiki-prose blockquote {
+    margin: 0.8em 0;
+    padding: 0.2em 1em;
+    border-left: 3px solid var(--llm-indigo);
+    background: var(--llm-indigo-light);
+    color: var(--llm-text-2);
+    border-radius: 0 6px 6px 0;
+}
+
+.wiki-prose code {
+    font-family: "JetBrains Mono", "Fira Code", Consolas, Menlo, monospace;
+    font-size: 0.88em;
+    background: #f0f0f3;
+    padding: 0.15em 0.4em;
+    border-radius: 4px;
+    color: #c7254e;
+}
+
+.wiki-prose pre {
+    background: #f6f8fa;
+    border: 1px solid var(--llm-border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    overflow: auto;
+    margin: 0.9em 0;
+    font-size: 13px;
+    line-height: 1.6;
+}
+.wiki-prose pre code {
+    background: transparent;
+    padding: 0;
+    color: inherit;
+    font-size: 13px;
+}
+
+.wiki-prose table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 0.9em 0;
+    font-size: 14px;
+}
+.wiki-prose th,
+.wiki-prose td {
+    border: 1px solid var(--llm-border);
+    padding: 8px 12px;
+    text-align: left;
+}
+.wiki-prose th {
+    background: #fafafa;
+    font-weight: 600;
+}
+.wiki-prose tr:nth-child(even) td {
+    background: #fcfcfd;
+}
+
+.wiki-prose hr {
+    border: none;
+    border-top: 1px solid var(--llm-border);
+    margin: 1.5em 0;
+}
+
+.wiki-prose img {
+    max-width: 100%;
+    border-radius: 8px;
+    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.08);
+}
+
+/* ── 脚注 ────────────────────────────────────────── */
+.wiki-prose .footnote-ref a {
+    font-size: 0.75em;
+    vertical-align: super;
+    line-height: 0;
+    background: var(--llm-indigo-light);
+    color: var(--llm-indigo);
+    padding: 1px 5px;
+    border-radius: 8px;
+    margin-left: 2px;
+    border-bottom: none;
+}
+.wiki-prose .footnotes {
+    margin-top: 2em;
+    padding-top: 1em;
+    border-top: 1px solid var(--llm-border);
+    font-size: 0.92em;
+    color: var(--llm-text-2);
+}
+.wiki-prose .footnotes ol {
+    padding-left: 1.4em;
+}
+.wiki-prose .footnote-back {
+    margin-left: 4px;
+}
+
+/* wiki 内链(指向 .md) */
+.wiki-prose a.wiki-link {
+    color: #0a7d4e;
+    border-bottom: 1px dashed #52c41a;
+}
+
+/* 源引用链接(指向 raw 文件) */
+.wiki-prose a.source-link {
+    color: #1565c0;
+    border-bottom: 1px dashed #1677ff;
+}
+
+/* ── Mermaid 居中 ────────────────────────────────── */
+.mermaid-wrap {
+    display: flex;
+    justify-content: center;
+    margin: 1em 0;
+    padding: 12px;
+    background: #fafafa;
+    border-radius: 8px;
+}
+.mermaid-wrap svg {
+    max-width: 100%;
+}
+
+/* ── 图谱浮窗 ───────────────────────────────────── */
+.graph-tooltip {
+    position: absolute;
+    pointer-events: none;
+    background: rgba(20, 20, 28, 0.94);
+    color: #fff;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    z-index: 10;
+    max-width: 260px;
+}
+.graph-tooltip .tt-title {
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+.graph-tooltip .tt-meta {
+    color: #b0b6c0;
+    font-size: 11px;
+}
+
+/* 空状态 */
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--llm-text-3);
+}
+.empty-state .es-icon {
+    font-size: 40px;
+    margin-bottom: 12px;
+    opacity: 0.5;
+}
+
+/* 通用卡片标题 */
+.page-title {
+    font-size: 22px;
+    font-weight: 650;
+    margin: 0 0 18px;
+    color: var(--llm-text);
+}
+
+/* ── TipTap 编辑器 ───────────────────────────────── */
+.wiki-prose .ProseMirror {
+    min-height: 360px;
+    padding: 4px 0;
+    outline: none;
+}
+.wiki-prose .ProseMirror:focus {
+    outline: none;
+}
+.wiki-prose .ProseMirror p.is-editor-empty:first-child::before {
+    content: attr(data-placeholder);
+    color: var(--llm-text-3);
+    float: left;
+    height: 0;
+    pointer-events: none;
+}
+.wiki-prose .ProseMirror mark {
+    background: #ffe58f;
+    border-radius: 2px;
+    padding: 0 2px;
+}
