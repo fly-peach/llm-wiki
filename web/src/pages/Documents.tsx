@@ -15,6 +15,7 @@ import {
     Typography,
     Empty,
     Tooltip,
+    InputNumber,
 } from "antd";
 import {
     PlusOutlined,
@@ -57,6 +58,7 @@ export default function Documents() {
     const [keyword, setKeyword] = useState("");
     const [selectedDir, setSelectedDir] = useState("");
     const [selectedKeys, setSelectedKeys] = useState<React.Key[]>([]);
+    const [chunkSize, setChunkSize] = useState(512);
 
     // 新建笔记
     const [noteOpen, setNoteOpen] = useState(false);
@@ -137,9 +139,12 @@ export default function Documents() {
     const handleReindex = async () => {
         try {
             const msg = message.loading("正在重建索引...", 0);
-            const r = await api.reindex();
+            const r = await api.reindex(chunkSize);
             msg();
-            message.success(`索引完成: ${r.indexed} 个文件, 跳过 ${r.skipped} 个`);
+            const parts: string[] = [`索引完成: ${r.indexed} 个文件`];
+            if (r.chunks_backfilled) parts.push(`${r.chunks_backfilled} 篇补充分块`);
+            parts.push(`chunk_size=${r.chunk_size || chunkSize}`);
+            message.success(parts.join("，"));
             load();
         } catch {
             message.error("索引失败");
@@ -250,7 +255,21 @@ export default function Documents() {
                 </h1>
                 <Space>
                     <Button icon={<ReloadOutlined />} onClick={load}>刷新</Button>
-                    <Button icon={<SyncOutlined />} onClick={handleReindex}>重建索引</Button>
+                    <Space.Compact>
+                        <Button icon={<SyncOutlined />} onClick={handleReindex}>重建索引</Button>
+                        <Tooltip title="分块 token 数（64~4096），默认 512。值越大块越大，搜索粒度越粗但召回更全。">
+                            <InputNumber
+                                size="small"
+                                min={64}
+                                max={4096}
+                                step={128}
+                                value={chunkSize}
+                                onChange={(v) => setChunkSize(v ?? 512)}
+                                style={{ width: 80 }}
+                                addonAfter="tokens"
+                            />
+                        </Tooltip>
+                    </Space.Compact>
                     <Button icon={<UploadOutlined />} onClick={() => setUploadOpen(true)}>上传</Button>
                     <Button type="primary" icon={<PlusOutlined />} onClick={() => setNoteOpen(true)}>新建笔记</Button>
                 </Space>

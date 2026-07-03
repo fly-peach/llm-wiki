@@ -20,7 +20,7 @@ from domain.file_types import (
     infer_source_kind,
     is_simple_text,
 )
-from services.chunker import chunk_text
+from services.chunker import chunk_text, ChunkConfig
 
 if TYPE_CHECKING:
     from services.local import LocalWikiService

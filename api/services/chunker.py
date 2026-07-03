@@ -8,12 +8,32 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
+from typing import NamedTuple
 
-# 分块配置
+# 分块配置（默认值，可通过 ChunkConfig 覆盖）
 CHUNK_SIZE_TOKENS = 512       # 目标块大小（token）
 CHUNK_OVERLAP_TOKENS = 128    # 块间重叠（token）
 MIN_CHUNK_TOKENS = 32         # 最小块，低于此值合并到上一块
 MAX_CHUNK_CHARS = 10000       # 单块最大字符数
+
+
+class ChunkConfig(NamedTuple):
+    """可配置的分块参数"""
+    chunk_size_tokens: int = CHUNK_SIZE_TOKENS
+    chunk_overlap_tokens: int = CHUNK_OVERLAP_TOKENS
+    min_chunk_tokens: int = MIN_CHUNK_TOKENS
+    max_chunk_chars: int = MAX_CHUNK_CHARS
+
+    @classmethod
+    def from_size(cls, chunk_size: int, overlap: int | None = None) -> "ChunkConfig":
+        """根据 chunk_size 快速构造配置，overlap 默认为 chunk_size 的 1/4。"""
+        overlap = overlap if overlap is not None else max(32, chunk_size // 4)
+        return cls(
+            chunk_size_tokens=chunk_size,
+            chunk_overlap_tokens=overlap,
+            min_chunk_tokens=max(16, chunk_size // 16),
+            max_chunk_chars=chunk_size * 20,
+        )
 
 
 @dataclass
@@ -36,6 +56,7 @@ def chunk_text(
     content: str,
     page: int | None = None,
     offset: int = 0,
+    config: ChunkConfig | None = None,
 ) -> list[Chunk]:
     """将文档文本切分为块列表。
 
@@ -43,24 +64,27 @@ def chunk_text(
         content: 全量 Markdown 文本
         page: 页码（PDF 场景）
         offset: 字符起始偏移
+        config: 分块配置（None 则使用默认值）
 
     返回:
-        Chunk 列表，按文档内容顺序排列，所有块 ≤ MAX_CHUNK_CHARS。
+        Chunk 列表，按文档内容顺序排列，所有块 ≤ max_chunk_chars。
     """
     if not content.strip():
         return []
+
+    cfg = config or ChunkConfig()
 
     # ── 第一步：按段落/标题边界分段 ──────────────────
     raw_segments = _split_by_boundaries(content)
 
     # ── 第二步：合并小段、拆分大段 ────────────────────
-    chunks = _build_chunks(raw_segments, page, offset)
+    chunks = _build_chunks(raw_segments, page, offset, cfg)
 
     # ── 第三步：注入标题面包屑 ────────────────────────
     chunks = _inject_breadcrumbs(chunks)
 
     # ── 第四步：强制截断超长块（CJK / 代码块兜底）───
-    return _enforce_max_chars(chunks)
+    return _enforce_max_chars(chunks, cfg)
 
 
 def _split_by_boundaries(text: str) -> list[str]:
@@ -104,6 +128,7 @@ def _build_chunks(
     segments: list[str],
     page: int | None,
     offset: int,
+    cfg: ChunkConfig,
 ) -> list[Chunk]:
     """将段落合并成大小合适的块。"""
     chunks: list[Chunk] = []
@@ -128,14 +153,14 @@ def _build_chunks(
         seg_tokens = estimate_tokens(seg)
 
         # 超大段 → 句子级拆分
-        if seg_tokens > CHUNK_SIZE_TOKENS * 2:
+        if seg_tokens > cfg.chunk_size_tokens * 2:
             flush_buffer()
-            sub_chunks = _split_long_segment(seg, page, char_pos, len(chunks))
+            sub_chunks = _split_long_segment(seg, page, char_pos, len(chunks), cfg)
             chunks.extend(sub_chunks)
             continue
 
         # 合并后不超限 → 累加
-        if buffer_tokens + seg_tokens <= CHUNK_SIZE_TOKENS:
+        if buffer_tokens + seg_tokens <= cfg.chunk_size_tokens:
             buffer += "\n\n" + seg if buffer else seg
             buffer_tokens += seg_tokens
         else:
@@ -147,7 +172,7 @@ def _build_chunks(
     flush_buffer()
 
     # 过小的块合并到上一块
-    chunks = _merge_small_chunks(chunks)
+    chunks = _merge_small_chunks(chunks, cfg)
 
     return chunks
 
@@ -157,6 +182,7 @@ def _split_long_segment(
     page: int | None,
     base_offset: int,
     start_index: int,
+    cfg: ChunkConfig,
 ) -> list[Chunk]:
     """对超长段落按句子边界拆分。"""
     sentences = re.split(r"(?<=[。！？.!?])\s*", text)
@@ -166,7 +192,7 @@ def _split_long_segment(
 
     for sent in sentences:
         sent_tokens = estimate_tokens(sent)
-        if buffer_tokens + sent_tokens > CHUNK_SIZE_TOKENS and buffer:
+        if buffer_tokens + sent_tokens > cfg.chunk_size_tokens and buffer:
             chunks.append(Chunk(
                 index=start_index + len(chunks),
                 content=buffer.strip(),
@@ -175,7 +201,7 @@ def _split_long_segment(
                 token_count=estimate_tokens(buffer.strip()),
             ))
             # 重叠：保留最后若干 token 的内容
-            overlap_chars = CHUNK_OVERLAP_TOKENS * 4
+            overlap_chars = cfg.chunk_overlap_tokens * 4
             buffer = buffer[-overlap_chars:] if len(buffer) > overlap_chars else ""
             buffer_tokens = estimate_tokens(buffer)
         buffer += sent
@@ -193,14 +219,14 @@ def _split_long_segment(
     return chunks
 
 
-def _merge_small_chunks(chunks: list[Chunk]) -> list[Chunk]:
+def _merge_small_chunks(chunks: list[Chunk], cfg: ChunkConfig) -> list[Chunk]:
     """将 token 数过低的块合并到前一相邻块。"""
     if len(chunks) <= 1:
         return chunks
 
     result: list[Chunk] = []
     for ch in chunks:
-        if ch.token_count < MIN_CHUNK_TOKENS and result:
+        if ch.token_count < cfg.min_chunk_tokens and result:
             # 合并到上一块
             prev = result[-1]
             prev.content += "\n\n" + ch.content
@@ -215,20 +241,21 @@ def _merge_small_chunks(chunks: list[Chunk]) -> list[Chunk]:
 _SENTENCE_RE = re.compile(r'(?<=[.!?。！？])\s+')
 
 
-def _enforce_max_chars(chunks: list[Chunk]) -> list[Chunk]:
-    """对超出 MAX_CHUNK_CHARS 的块按句子边界二次拆分。
+def _enforce_max_chars(chunks: list[Chunk], cfg: ChunkConfig) -> list[Chunk]:
+    """对超出 max_chunk_chars 的块按句子边界二次拆分。
 
     段落级分块对英文 wiki 文本工作良好，但 CJK 密集段落和长代码块
-    可能超过 10k-char DB 约束。此函数对违规块先按句子拆分，失败时
+    可能超过 DB 约束。此函数对违规块先按句子拆分，失败时
     硬截断。拆分后的 piece 有独立的 start_char 偏移量，确保下游
     textAnchor 高亮映射能正确计算 end = start_char + len(content)。
     """
-    if not any(len(c.content) > MAX_CHUNK_CHARS for c in chunks):
+    max_chars = cfg.max_chunk_chars
+    if not any(len(c.content) > max_chars for c in chunks):
         return chunks
 
     result: list[Chunk] = []
     for c in chunks:
-        if len(c.content) <= MAX_CHUNK_CHARS:
+        if len(c.content) <= max_chars:
             result.append(Chunk(
                 index=len(result), content=c.content, page=c.page,
                 start_char=c.start_char, token_count=c.token_count,
@@ -238,7 +265,7 @@ def _enforce_max_chars(chunks: list[Chunk]) -> list[Chunk]:
 
         base = c.start_char or 0
         offset = 0
-        for piece in _split_oversized(c.content):
+        for piece in _split_oversized(c.content, max_chars):
             result.append(Chunk(
                 index=len(result), content=piece, page=c.page,
                 start_char=base + offset, token_count=estimate_tokens(piece),
@@ -248,24 +275,24 @@ def _enforce_max_chars(chunks: list[Chunk]) -> list[Chunk]:
     return result
 
 
-def _split_oversized(text: str) -> list[str]:
+def _split_oversized(text: str, max_chars: int) -> list[str]:
     """按句子边界拆超长文本；无句号可用时硬截断。"""
     parts = _SENTENCE_RE.split(text)
     pieces: list[str] = []
     current = ""
     for part in parts:
         candidate = (current + " " + part).strip() if current else part
-        if len(candidate) <= MAX_CHUNK_CHARS:
+        if len(candidate) <= max_chars:
             current = candidate
         else:
             if current:
                 pieces.append(current)
-            if len(part) <= MAX_CHUNK_CHARS:
+            if len(part) <= max_chars:
                 current = part
             else:
                 # 句子拆分失败 → 固定大小硬截断
-                for i in range(0, len(part), MAX_CHUNK_CHARS):
-                    pieces.append(part[i:i + MAX_CHUNK_CHARS])
+                for i in range(0, len(part), max_chars):
+                    pieces.append(part[i:i + max_chars])
                 current = ""
     if current:
         pieces.append(current)

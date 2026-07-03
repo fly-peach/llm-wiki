@@ -110,10 +110,15 @@ export const api = {
         fd.append("path", path);
         return fetch(BASE + "/upload", { method: "POST", body: fd }).then((r) => r.json());
     },
-    reindex: () =>
-        request<{ status: string; indexed: number; skipped: number; errors: number }>("/reindex", {
-            method: "POST",
-        }),
+    reindex: (chunkSize?: number) => {
+        const params = new URLSearchParams();
+        if (chunkSize && chunkSize !== 512) params.set("chunk_size", String(chunkSize));
+        const qs = params.toString();
+        return request<{
+            status: string; indexed: number; skipped: number; errors: number;
+            chunk_size: number; chunks_backfilled: number;
+        }>("/reindex" + (qs ? `?${qs}` : ""), { method: "POST" });
+    },
 
     // ── 用量/健康 ────────────────────────────────────
     usage: () => request<UsageStats>("/usage"),
