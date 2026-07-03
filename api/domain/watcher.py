@@ -20,6 +20,7 @@ from domain.file_types import (
     infer_source_kind,
     is_simple_text,
 )
+from services.chunker import chunk_text
 
 if TYPE_CHECKING:
     from services.local import LocalWikiService
@@ -162,6 +163,9 @@ async def _index_file(
             await svc.update_document(
                 existing["id"], existing["version"], **update_fields
             )
+            # 内容变更后重新分块（如果内容已更新）
+            if content is not None and content.strip():
+                await _save_chunks_for_doc(svc, ws_id, existing["id"], content)
             return existing["id"]
 
         else:
@@ -182,7 +186,11 @@ async def _index_file(
             if content is not None:
                 fields["content"] = content
                 fields["content_hash"] = content_hash
-            return await svc.create_document(ws_id, **fields)
+            doc_id = await svc.create_document(ws_id, **fields)
+            # 新文件立即分块
+            if content is not None and content.strip():
+                await _save_chunks_for_doc(svc, ws_id, doc_id, content)
+            return doc_id
 
     except Exception:
         # 索引失败不应阻断监控循环
@@ -198,6 +206,39 @@ async def _remove_file(
     file_path: str,
 ) -> bool:
     """从索引中移除已删除的文件。"""
+
+
+async def _save_chunks_for_doc(
+    svc: "LocalWikiService",
+    ws_id: str,
+    doc_id: str,
+    content: str,
+) -> None:
+    """对新索引或内容变更的文件立即执行分块写入，确保 FTS5 可搜索。"""
+    if not content or not content.strip():
+        return
+    from infra.db.sqlite import serialized_write
+
+    chunks = chunk_text(content)
+    db = await svc._get_db(ws_id)
+
+    async with serialized_write():
+        await db.execute(
+            "DELETE FROM document_chunks WHERE document_id = ?",
+            (doc_id,),
+        )
+        for ch in chunks:
+            await db.execute(
+                """INSERT INTO document_chunks
+                   (document_id, chunk_index, content, source_content,
+                    page, start_char, token_count, header_breadcrumb)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    doc_id, ch.index, ch.content, ch.content,
+                    ch.page, ch.start_char, ch.token_count, ch.header_breadcrumb,
+                ),
+            )
+        await db.commit()
     try:
         fp = Path(file_path)
         relative_path = str(fp.relative_to(workspace)).replace("\\", "/")
