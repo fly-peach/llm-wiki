@@ -253,26 +253,32 @@ export default function Documents() {
                         {filtered.length} / {docs.length}
                     </Text>
                 </h1>
-                <Space>
-                    <Button icon={<ReloadOutlined />} onClick={load}>刷新</Button>
-                    <Space.Compact>
+                <div>
+                    <Space style={{ marginBottom: 8 }}>
+                        <Button icon={<ReloadOutlined />} onClick={load}>刷新</Button>
                         <Button icon={<SyncOutlined />} onClick={handleReindex}>重建索引</Button>
-                        <Tooltip title="分块 token 数（64~4096），默认 512。值越大块越大，搜索粒度越粗但召回更全。">
-                            <InputNumber
-                                size="small"
-                                min={64}
-                                max={4096}
-                                step={128}
-                                value={chunkSize}
-                                onChange={(v) => setChunkSize(v ?? 512)}
-                                style={{ width: 80 }}
-                                addonAfter="tokens"
-                            />
-                        </Tooltip>
-                    </Space.Compact>
-                    <Button icon={<UploadOutlined />} onClick={() => setUploadOpen(true)}>上传</Button>
-                    <Button type="primary" icon={<PlusOutlined />} onClick={() => setNoteOpen(true)}>新建笔记</Button>
-                </Space>
+                        <Button icon={<UploadOutlined />} onClick={() => setUploadOpen(true)}>上传</Button>
+                        <Button type="primary" icon={<PlusOutlined />} onClick={() => setNoteOpen(true)}>新建笔记</Button>
+                    </Space>
+                    <div>
+                        <Space size={4}>
+                            <Text type="secondary" style={{ fontSize: 12 }}>分块大小：</Text>
+                            <Tooltip title="分块 token 数（64~4096），默认 512。值越大块越大，搜索粒度越粗但召回更全。">
+                                <InputNumber
+                                    size="small"
+                                    min={64}
+                                    max={4096}
+                                    step={128}
+                                    value={chunkSize}
+                                    onChange={(v) => setChunkSize(v ?? 512)}
+                                    style={{ width: 90 }}
+                                    addonAfter="tokens"
+                                />
+                            </Tooltip>
+                            <Text type="secondary" style={{ fontSize: 11 }}>重建索引时生效</Text>
+                        </Space>
+                    </div>
+                </div>
             </div>
 
             <div style={{ display: "flex", gap: 16 }}>
