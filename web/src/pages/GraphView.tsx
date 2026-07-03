@@ -218,17 +218,43 @@ export default function GraphView() {
         });
     };
 
+    // 聚焦时获取邻居节点 id 集合
+    const focusNeighbors = useMemo(() => {
+        if (!focusId || !data) return new Set<string>();
+        const neighbors = new Set<string>([focusId]);
+        data.edges.forEach((e) => {
+            if (e.source === focusId) neighbors.add(e.target);
+            if (e.target === focusId) neighbors.add(e.source);
+        });
+        return neighbors;
+    }, [focusId, data]);
+
     const listNodes = useMemo(() => {
-        const arr = (data?.nodes || [])
-            .map((n) => ({
-                ...n,
-                deg: (degrees.out.get(n.id) || 0) + (degrees.ind.get(n.id) || 0),
-            }))
-            .sort((a, b) => b.deg - a.deg);
+        const raw = (data?.nodes || []).map((n) => ({
+            ...n,
+            deg: (degrees.out.get(n.id) || 0) + (degrees.ind.get(n.id) || 0),
+        }));
+
+        // 聚焦模式：只显示焦点节点 + 邻居节点
+        let arr = focusId
+            ? raw.filter((n) => focusNeighbors.has(n.id))
+            : raw;
+
+        // 聚焦模式下，焦点节点排最前，邻居节点按度数降序
+        if (focusId) {
+            arr.sort((a, b) => {
+                if (a.id === focusId) return -1;
+                if (b.id === focusId) return 1;
+                return b.deg - a.deg;
+            });
+        } else {
+            arr.sort((a, b) => b.deg - a.deg);
+        }
+
         if (!listSearch.trim()) return arr;
         const kw = listSearch.toLowerCase();
         return arr.filter((n) => (n.title || n.filename).toLowerCase().includes(kw));
-    }, [data, degrees, listSearch]);
+    }, [data, degrees, listSearch, focusId, focusNeighbors]);
 
     return (
         <div>
@@ -308,9 +334,27 @@ export default function GraphView() {
             </div>
 
             {/* 节点列表 */}
-            <Card size="small" title={`节点列表（${data?.nodes?.length ?? 0}）`} style={{ marginTop: 16 }}>
+            <Card
+                size="small"
+                title={
+                    <Space>
+                        <span>节点列表</span>
+                        {focusId && (
+                            <Tag color="purple" style={{ marginLeft: 4 }}>
+                                聚焦中 · {focusNeighbors.size - 1} 个邻居
+                            </Tag>
+                        )}
+                        {!focusId && (
+                            <Text type="secondary" style={{ fontSize: 12 }}>
+                                （{data?.nodes?.length ?? 0}）
+                            </Text>
+                        )}
+                    </Space>
+                }
+                style={{ marginTop: 16 }}
+            >
                 <Input.Search
-                    placeholder="搜索节点"
+                    placeholder={focusId ? "在邻居节点中搜索" : "搜索节点"}
                     allowClear
                     value={listSearch}
                     onChange={(e) => setListSearch(e.target.value)}
@@ -318,7 +362,7 @@ export default function GraphView() {
                 />
                 <div style={{ maxHeight: 260, overflow: "auto" }}>
                     {listNodes.length === 0 ? (
-                        <Empty description="暂无节点" />
+                        <Empty description={focusId ? "该节点无邻居连接" : "暂无节点"} />
                     ) : (
                         listNodes.map((n) => (
                             <Link
@@ -335,6 +379,9 @@ export default function GraphView() {
                                 <Text style={{ flex: 1 }}>{n.title || n.filename}</Text>
                                 <Text type="secondary" style={{ fontSize: 11 }}>{n.source_kind}</Text>
                                 <Tag bordered={false} style={{ fontSize: 11 }}>度 {n.deg}</Tag>
+                                {focusId && n.id !== focusId && (
+                                    <EdgeTypeTag sourceId={focusId} targetId={n.id} edges={data?.edges || []} />
+                                )}
                                 {n.status && n.status !== "ready" && (
                                     <Text type="secondary" style={{ fontSize: 11 }}>{STATUS_LABEL[n.status] || n.status}</Text>
                                 )}
@@ -344,5 +391,38 @@ export default function GraphView() {
                 </div>
             </Card>
         </div>
+    );
+}
+
+// ── 边类型标签 ──────────────────────────────────
+
+function EdgeTypeTag({ sourceId, targetId, edges }: { sourceId: string; targetId: string; edges: GraphData["edges"] }) {
+    const edgeTypes = edges
+        .filter((e) =>
+            (e.source === sourceId && e.target === targetId) ||
+            (e.source === targetId && e.target === sourceId)
+        )
+        .map((e) => e.type);
+
+    if (edgeTypes.length === 0) return null;
+
+    return (
+        <Space size={2}>
+            {edgeTypes.map((t, i) => (
+                <Tag
+                    key={i}
+                    bordered={false}
+                    style={{
+                        fontSize: 10,
+                        padding: "0 4px",
+                        lineHeight: "16px",
+                        background: t === "cites" ? "#e6f4ff" : "#f6ffed",
+                        color: t === "cites" ? "#1677ff" : "#52c41a",
+                    }}
+                >
+                    {t === "cites" ? "引用" : "链接"}
+                </Tag>
+            ))}
+        </Space>
     );
 }
