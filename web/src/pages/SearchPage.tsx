@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Input, Button, Card, List, Typography, Tag, Empty, Space } from "antd";
-import { SearchOutlined } from "@ant-design/icons";
+import { Input, Button, Card, List, Typography, Tag, Empty, Space, message } from "antd";
+import { SearchOutlined, ReloadOutlined } from "@ant-design/icons";
 import { api } from "../lib/api";
 import { useWorkspace } from "../lib/workspace-context";
 import type { SearchResult } from "../lib/types";
@@ -15,6 +15,7 @@ export default function SearchPage() {
     const [results, setResults] = useState<SearchResult[]>([]);
     const [searched, setSearched] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [reindexing, setReindexing] = useState(false);
 
     const handleSearch = async () => {
         if (!query.trim()) return;
@@ -32,6 +33,20 @@ export default function SearchPage() {
 
     const linkFor = (r: SearchResult) =>
         `/documents/${r.doc_id}?chunk=${r.chunk_index ?? 0}&query=${encodeURIComponent(query)}`;
+
+    const handleReindex = async () => {
+        setReindexing(true);
+        try {
+            const r = await api.reindex();
+            message.success(`索引完成：${r.indexed} 新增，${r.skipped} 跳过，${r.errors} 错误`);
+            setSearched(false);
+            setResults([]);
+        } catch (e: any) {
+            message.error(`重建失败：${e.message || '未知错误'}`);
+        } finally {
+            setReindexing(false);
+        }
+    };
 
     return (
         <div style={{ maxWidth: 900 }}>
@@ -58,7 +73,24 @@ export default function SearchPage() {
             )}
 
             {searched && results.length === 0 && (
-                <Empty description="没有找到结果，试试其他关键词" />
+                <Empty description={
+                    <Space direction="vertical" size={8}>
+                        <span>没有找到结果，试试其他关键词</span>
+                        <Button
+                            type="primary"
+                            ghost
+                            size="small"
+                            icon={<ReloadOutlined />}
+                            loading={reindexing}
+                            onClick={handleReindex}
+                        >
+                            重建索引
+                        </Button>
+                        <Text type="secondary" style={{ fontSize: 11 }}>
+                            如果文档刚添加或更新，重建索引可让内容被搜索到
+                        </Text>
+                    </Space>
+                } />
             )}
 
             <List
