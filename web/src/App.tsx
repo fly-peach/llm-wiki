@@ -30,14 +30,16 @@ export default function App() {
 
     return (
         <Routes>
-            <Route path="/workspaces" element={<WorkspaceManager />} />
-            <Route path="/w/:wsId" element={<Layout />}>
-                <Route index element={<Dashboard />} />
-                <Route path="documents" element={<Documents />} />
-                <Route path="documents/:id" element={<DocumentView />} />
-                <Route path="graph" element={<GraphView />} />
-                <Route path="schema" element={<SchemaEditor />} />
-                <Route path="search" element={<SearchPage />} />
+            <Route element={<Layout />}>
+                <Route path="/workspaces" element={<WorkspaceManager />} />
+                <Route path="/w/:wsId">
+                    <Route index element={<Dashboard />} />
+                    <Route path="documents" element={<Documents />} />
+                    <Route path="documents/:id" element={<DocumentView />} />
+                    <Route path="graph" element={<GraphView />} />
+                    <Route path="schema" element={<SchemaEditor />} />
+                    <Route path="search" element={<SearchPage />} />
+                </Route>
             </Route>
             <Route path="/" element={<Navigate to={`/w/${workspaces[0].id}`} replace />} />
             <Route path="*" element={<Navigate to="/" replace />} />

@@ -34,19 +34,21 @@ export default function Layout() {
         () => localStorage.getItem(COLLAPSE_KEY) === "1",
     );
 
-    const base = `/w/${wsId}`;
-    const page = loc.pathname.split("/")[3] || ""; // /w/{wsId}/{page}
+    const base = wsId ? `/w/${wsId}` : "";
+    const parts = loc.pathname.split("/");
+    const isWorkspacesPage = parts[1] === "workspaces";
+    const page = parts[3] || ""; // /w/{wsId}/{page}
 
     const NAV = [
-        { to: base, label: "首页", icon: <DashboardOutlined /> },
-        { to: `${base}/documents`, label: "文档", icon: <FileTextOutlined /> },
-        { to: `${base}/search`, label: "搜索", icon: <SearchOutlined /> },
-        { to: `${base}/graph`, label: "图谱", icon: <ApartmentOutlined /> },
-        { to: `${base}/schema`, label: "规范", icon: <SettingOutlined /> },
-        { to: "/workspaces", label: "工作区", icon: <FolderOpenOutlined /> },
+        { to: base, label: "首页", icon: <DashboardOutlined />, needWs: true },
+        { to: `${base}/documents`, label: "文档", icon: <FileTextOutlined />, needWs: true },
+        { to: `${base}/search`, label: "搜索", icon: <SearchOutlined />, needWs: true },
+        { to: `${base}/graph`, label: "图谱", icon: <ApartmentOutlined />, needWs: true },
+        { to: `${base}/schema`, label: "规范", icon: <SettingOutlined />, needWs: true },
+        { to: "/workspaces", label: "工作区", icon: <FolderOpenOutlined />, needWs: false },
     ];
 
-    const selected = page === "" ? base : `${base}/${page}`;
+    const selected = isWorkspacesPage ? "/workspaces" : (page === "" ? base : `${base}/${page}`);
     const wsName = workspaces.find((w) => w.id === current)?.name;
 
     const toggle = () => {
@@ -56,9 +58,11 @@ export default function Layout() {
     };
 
     // 面包屑
-    const crumbs: { title: ReactNode }[] = [{ title: <Link to={base}>首页</Link> }];
-    if (page && ROUTE_LABEL[page]) crumbs.push({ title: ROUTE_LABEL[page] });
-    if (page === "documents" && loc.pathname.split("/")[4]) crumbs.push({ title: "详情" });
+    const crumbs: { title: ReactNode }[] = [
+        { title: isWorkspacesPage ? "工作区" : <Link to={base}>首页</Link> },
+    ];
+    if (!isWorkspacesPage && page && ROUTE_LABEL[page]) crumbs.push({ title: ROUTE_LABEL[page] });
+    if (page === "documents" && parts[4]) crumbs.push({ title: "详情" });
 
     return (
         <AntLayout style={{ minHeight: "100vh" }}>
@@ -104,11 +108,15 @@ export default function Layout() {
                     theme="dark"
                     mode="inline"
                     selectedKeys={[selected]}
-                    items={NAV.map((n) => ({
-                        key: n.to,
-                        icon: n.icon,
-                        label: <Link to={n.to}>{n.label}</Link>,
-                    }))}
+                    items={NAV.map((n) => {
+                        const disabled = n.needWs && !wsId;
+                        return {
+                            key: n.to,
+                            icon: n.icon,
+                            disabled,
+                            label: disabled ? <span>{n.label}</span> : <Link to={n.to}>{n.label}</Link>,
+                        };
+                    })}
                 />
             </Sider>
 
