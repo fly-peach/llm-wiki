@@ -1,4 +1,4 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import { Spin } from "antd";
 import Layout from "./components/Layout";
 import Onboarding from "./components/Onboarding";
@@ -12,7 +12,7 @@ import SearchPage from "./pages/SearchPage";
 import WorkspaceManager from "./pages/WorkspaceManager";
 
 export default function App() {
-    const { loaded, current } = useWorkspace();
+    const { loaded, workspaces } = useWorkspace();
 
     // 首启：未加载完成时显示加载态
     if (!loaded) {
@@ -24,21 +24,23 @@ export default function App() {
     }
 
     // 没有任何工作区 → 强制引导创建，不进入主界面
-    if (!current) {
+    if (workspaces.length === 0) {
         return <Onboarding />;
     }
 
     return (
-        <Layout>
-            <Routes>
-                <Route path="/" element={<Dashboard />} />
-                <Route path="/documents" element={<Documents />} />
-                <Route path="/documents/:id" element={<DocumentView />} />
-                <Route path="/graph" element={<GraphView />} />
-                <Route path="/schema" element={<SchemaEditor />} />
-                <Route path="/search" element={<SearchPage />} />
-                <Route path="/workspaces" element={<WorkspaceManager />} />
-            </Routes>
-        </Layout>
+        <Routes>
+            <Route path="/workspaces" element={<WorkspaceManager />} />
+            <Route path="/w/:wsId" element={<Layout />}>
+                <Route index element={<Dashboard />} />
+                <Route path="documents" element={<Documents />} />
+                <Route path="documents/:id" element={<DocumentView />} />
+                <Route path="graph" element={<GraphView />} />
+                <Route path="schema" element={<SchemaEditor />} />
+                <Route path="search" element={<SearchPage />} />
+            </Route>
+            <Route path="/" element={<Navigate to={`/w/${workspaces[0].id}`} replace />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
     );
 }

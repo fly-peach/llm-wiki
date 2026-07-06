@@ -18,7 +18,7 @@ LOCAL_USER_ID = "local-user"
 async def init_workspace(workspace: Path) -> str:
     """幂等地初始化工作区。
 
-    1. 创建目录结构（raw/、wiki/、.llmwiki/）
+    1. 创建目录结构（wiki/、.llmwiki/）
     2. 执行 SQLite schema
     3. 注册 workspace 行
     4. 创建种子 wiki 页面（overview、index、log）

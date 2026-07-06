@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Tree, Input, type TreeDataNode } from "antd";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import type { Document } from "../lib/types";
 import { KIND_COLOR } from "../lib/format";
 
@@ -71,6 +71,7 @@ const KIND_DIR_LABEL: Record<string, string> = {
 
 export default function FileTree({ docs, selectedDir, onDirSelect }: Props) {
     const nav = useNavigate();
+    const { wsId = "" } = useParams<{ wsId: string }>();
     const [search, setSearch] = useState("");
 
     const treeData = useMemo(() => {
@@ -146,7 +147,7 @@ export default function FileTree({ docs, selectedDir, onDirSelect }: Props) {
                             return;
                         }
                         if (key.startsWith("doc:")) {
-                            nav(`/documents/${key.slice(4)}`);
+                            nav(`/w/${wsId}/documents/${key.slice(4)}`);
                             return;
                         }
                         onDirSelect(key === selectedDir ? "" : key);

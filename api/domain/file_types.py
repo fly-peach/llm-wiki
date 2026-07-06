@@ -43,8 +43,8 @@ def infer_source_kind(relative_path: str) -> str:
 
     规则：
       - 以 'wiki/' 开头 → 'wiki'
-      - 以 '.llmwiki/' 开头 → 忽略
-      - 其他 → 'raw'（工作区根目录下的文档即原始资料）
+      - 其他 → 'raw'（工作区内任意非 wiki/ 文件均视为原始资料；
+        .llmwiki/.git 等目录在 watcher._should_ignore 层过滤，不会到达此处）
     """
     normalized = relative_path.replace("\\", "/").lstrip("/")
     if normalized.startswith("wiki/"):

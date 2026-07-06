@@ -104,7 +104,7 @@ export default function GraphView() {
         simRef.current?.stop();
 
         const width = containerRef.current?.clientWidth || 800;
-        const height = 520;
+        const height = 600;
 
         const nodes: any[] = fd.nodes.map((n) => ({ ...n }));
         const edges: any[] = fd.edges
@@ -127,10 +127,10 @@ export default function GraphView() {
 
         const sim = d3
             .forceSimulation(nodes)
-            .force("link", d3.forceLink(edges).distance(110).id((d: any) => d.id))
-            .force("charge", d3.forceManyBody().strength(-380))
+            .force("link", d3.forceLink(edges).distance(160).id((d: any) => d.id))
+            .force("charge", d3.forceManyBody().strength(-600))
             .force("center", d3.forceCenter(width / 2, height / 2))
-            .force("collide", d3.forceCollide(32));
+            .force("collide", d3.forceCollide(48));
         simRef.current = sim;
 
         const g = svg.append("g");
@@ -170,18 +170,31 @@ export default function GraphView() {
 
         node
             .append("circle")
-            .attr("r", (d: any) => 5 + Math.sqrt((degrees.out.get(d.id) || 0) + (degrees.ind.get(d.id) || 0)) * 2.4)
+            .attr("r", (d: any) => 4 + Math.sqrt((degrees.out.get(d.id) || 0) + (degrees.ind.get(d.id) || 0)) * 1.6)
             .attr("fill", (d: any) => KIND_COLOR[d.source_kind] || "#999")
             .attr("stroke", "#fff")
-            .attr("stroke-width", 2);
+            .attr("stroke-width", 1.5);
+
+        // 文字背景（提高可读性）
+        node
+            .append("rect")
+            .attr("x", 10)
+            .attr("y", -7)
+            .attr("rx", 3)
+            .attr("ry", 3)
+            .attr("width", (d: any) => Math.min((d.title || d.filename).length, 10) * 9 + 8)
+            .attr("height", 16)
+            .attr("fill", "rgba(255,255,255,0.85)")
+            .style("pointer-events", "none");
 
         node
             .append("text")
             .text((d: any) => (d.title || d.filename).slice(0, 10))
-            .attr("x", 12)
-            .attr("y", 4)
-            .attr("font-size", 10)
-            .attr("fill", "#333")
+            .attr("x", 14)
+            .attr("y", 5)
+            .attr("font-size", 12)
+            .attr("font-weight", 500)
+            .attr("fill", "#1a1a1a")
             .style("pointer-events", "none");
 
         node.append("title").text((d: any) => d.title || d.filename);
@@ -316,7 +329,7 @@ export default function GraphView() {
                         {loading ? (
                             <div style={{ textAlign: "center", padding: 100 }}><Spin size="large" /></div>
                         ) : (
-                            <svg ref={svgRef} style={{ width: "100%", height: 520, display: "block" }} />
+                            <svg ref={svgRef} style={{ width: "100%", height: 600, display: "block" }} />
                         )}
                         {hovered && (
                             <div
@@ -367,7 +380,7 @@ export default function GraphView() {
                         listNodes.map((n) => (
                             <Link
                                 key={n.id}
-                                to={`/documents/${n.id}`}
+                                to={`/w/${current}/documents/${n.id}`}
                                 style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 0", borderBottom: "1px solid #f5f5f5" }}
                             >
                                 <span

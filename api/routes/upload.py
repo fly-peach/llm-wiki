@@ -29,7 +29,7 @@ async def upload_file(
 
     参数:
         file: 上传的文件
-        path: 目标子目录（默认 /raw/）
+        path: 目标子目录（默认 /，即工作区根目录）
         ws_id: 工作区 ID（若为空则用第一个已注册工作区）
 
     流程:

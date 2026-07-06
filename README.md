@@ -4,14 +4,14 @@
 >
 > **Obsidian 是 IDE,LLM 是程序员,wiki 是代码库。**
 
-LLM Wiki 把"原始资料 → 结构化知识"的提炼过程变成可被 AI Agent 自动化的工作流:资料放入 `raw/`,Agent 读取并编译成 `wiki/` 下的结构化页面,用脚注引用和交叉链接构建知识图谱,再通过 MCP 工具集查询与演进。
+LLM Wiki 把"原始资料 → 结构化知识"的提炼过程变成可被 AI Agent 自动化的工作流:原始资料放入工作区任意位置(非 `wiki/` 即视为 raw),Agent 读取并编译成 `wiki/` 下的结构化页面,用脚注引用和交叉链接构建知识图谱,再通过 MCP 工具集查询与演进。
 
 ## 特性
 
-- **三层架构** — Raw / Wiki / Schema 分层,LLM 只读原始资料、只写 wiki
+- **三层架构** — Raw / Wiki / Schema 分层(Raw 与 Wiki 是 `source_kind` 标记,非强制目录;LLM 只读原始资料、只写 wiki)
 - **知识图谱** — 自动解析 `[^n]` 脚注引用与 `[text](page.md)` 交叉链接,构建可可视化引用网络
 - **全文搜索** — SQLite FTS5,按语义分块(512 token)索引,带标题面包屑
-- **文件监控** — `raw/` `wiki/` 实时索引,防回环写入
+- **文件监控** — 整个工作区实时索引(忽略 `.llmwiki`/`.git` 等),防回环写入
 - **MCP 集成** — 17 个 tool 经 fastapi-mcp 挂载于 `/mcp`,复用 REST 接口,ASGI 同进程直连
 - **多工作区** — 一个文件夹 = 一个工作区,各自独立的 SQLite 索引
 - **实体模板** — 7 种实体(person/paper/concept/event/organization/project/comparison)自动生成 frontmatter
@@ -21,7 +21,7 @@ LLM Wiki 把"原始资料 → 结构化知识"的提炼过程变成可被 AI Age
 
 | 层 | 目录 | 职责 |
 |----|------|------|
-| Raw | `raw/` | 原始资料(LLM 只读) |
+| Raw | 工作区任意位置(非 `wiki/`) | 原始资料(LLM 只读,`source_kind=raw`) |
 | Wiki | `wiki/` | LLM 生成的结构化知识 |
 | Schema | `SCHEMA.md` | 目录结构、命名约定、工作流程规范 |
 
@@ -44,7 +44,7 @@ cd web && npm install && npm run dev
 #   前端: http://localhost:3000 (自动代理 /v1 → :8000)
 ```
 
-**第一次使用** — 启动后先创建工作区(一个磁盘文件夹),系统会自动建 `raw/` `wiki/` `.llmwiki/index.db` 及种子页面:
+**第一次使用** — 启动后先创建工作区(一个磁盘文件夹),系统会自动建 `wiki/` `.llmwiki/index.db` 及种子页面(`raw/` 非必需,原始资料放任意位置均可):
 
 ```bash
 curl -X POST http://localhost:8000/v1/workspaces \
@@ -134,7 +134,7 @@ claude mcp add --transport http llmwiki http://localhost:8000/mcp
 
 ## 五步工作流
 
-1. **Ingest** — 资料放入 `raw/`,或 `create_note` 直接写 wiki
+1. **Ingest** — 资料放入工作区任意位置(非 `wiki/` 即视为 raw),或 `create_note` 直接写 wiki
 2. **Compile** — 读 raw → 提炼 → 创建/更新 wiki 页面
 3. **Link** — `[^n]` 标注引用来源,`[text](page.md)` 交叉链接
 4. **Query** — `search_documents` + `read_document` 查找知识

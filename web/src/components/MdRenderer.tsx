@@ -5,7 +5,7 @@ import remarkMath from "remark-math";
 import rehypeHighlight from "rehype-highlight";
 import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import MermaidBlock from "./MermaidBlock";
 
 function slug(s: string): string {
@@ -35,6 +35,7 @@ interface Props {
 
 function MdRendererBase({ content, wikiLinkMap, sourceMap }: Props) {
     const nav = useNavigate();
+    const { wsId = "" } = useParams<{ wsId: string }>();
 
     const components = useMemo(
         () => ({
@@ -55,7 +56,7 @@ function MdRendererBase({ content, wikiLinkMap, sourceMap }: Props) {
                 const wid = wikiLinkMap?.get(target) || wikiLinkMap?.get(stem) || wikiLinkMap?.get(stem + ".md");
                 if (wid) {
                     return (
-                        <a className="wiki-link" onClick={() => nav(`/documents/${wid}`)}>
+                        <a className="wiki-link" onClick={() => nav(`/w/${wsId}/documents/${wid}`)}>
                             {children}
                         </a>
                     );
@@ -63,7 +64,7 @@ function MdRendererBase({ content, wikiLinkMap, sourceMap }: Props) {
                 const sid = sourceMap?.get(target);
                 if (sid) {
                     return (
-                        <a className="source-link" onClick={() => nav(`/documents/${sid}`)}>
+                        <a className="source-link" onClick={() => nav(`/w/${wsId}/documents/${sid}`)}>
                             {children}
                         </a>
                     );

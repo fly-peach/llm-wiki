@@ -168,7 +168,7 @@ export default function Documents() {
             title: "标题",
             dataIndex: "title",
             render: (_: unknown, d: Document) => (
-                <Link to={`/documents/${d.id}`} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <Link to={`/w/${current}/documents/${d.id}`} style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     <span
                         style={{
                             display: "inline-block",
@@ -271,7 +271,7 @@ export default function Documents() {
                                     step={128}
                                     value={chunkSize}
                                     onChange={(v) => setChunkSize(v ?? 512)}
-                                    style={{ width: 90 }}
+                                    style={{ width: 200 }}
                                     addonAfter="tokens"
                                 />
                             </Tooltip>

@@ -98,7 +98,7 @@ export default function DocumentView() {
     const handleDelete = async () => {
         if (!id) return;
         await api.deleteDocument(id);
-        nav("/documents");
+        nav(`/w/${current}/documents`);
         message.success("已删除");
     };
 

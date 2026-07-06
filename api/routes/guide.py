@@ -16,6 +16,14 @@ GUIDE_TEXT = """# LLM Wiki 使用指南
 ## 核心理念
 Obsidian 是 IDE，LLM 是程序员，wiki 是代码库。
 
+## 多工作区切换
+若服务端注册了多个工作区（知识库），先切换到目标工作区再操作：
+1. list_workspaces — 查看所有已注册工作区及其 ID
+2. set_current_workspace(ws_id) — 切换到目标工作区
+3. get_current_workspace — 查询当前工作区（不确定时调用）
+
+切换后所有 tool（list_documents / search_documents / create_note 等）自动作用在该工作区。
+
 ## 五步流程
 1. Ingest（摄入）: 资料放入工作区目录，或 create_note 直接写 wiki
 2. Compile（编译）: 读工作区中的原始资料 → 写 wiki/ 摘要/实体/总结

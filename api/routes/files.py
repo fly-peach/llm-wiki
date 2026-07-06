@@ -21,7 +21,7 @@ async def serve_file(
     file_path: str,
     svc: LocalWikiService = Depends(get_service),
 ):
-    """直接提供工作区中的文件（raw/wiki 目录下的任意文件）。
+    """直接提供工作区中的任意文件。
 
     支持 Range 请求（大文件断点续传）。
     """

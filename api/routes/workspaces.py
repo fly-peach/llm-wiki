@@ -14,7 +14,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from deps import find_valid_workspace, get_current_workspace, get_service, set_current_workspace
+from deps import find_valid_workspace, get_current_workspace, get_locked_workspace, get_service, set_current_workspace
 from domain.watcher import watch_workspace
 from infra.workspace.registry import WorkspaceEntry
 from services.local import LocalWikiService
@@ -112,26 +112,43 @@ class SetCurrentRequest(BaseModel):
     ws_id: str
 
 
-@router.put("/current", operation_id="set_current_workspace", summary="设置当前工作区(前端切换工作区时调用)")
+@router.put("/current", operation_id="set_current_workspace", summary="切换当前工作区(MCP/前端调用,后续操作均作用于此工作区)")
 async def set_current(
     body: SetCurrentRequest,
     svc: LocalWikiService = Depends(get_service),
 ):
-    """设置当前工作区。后续所有依赖 find_valid_workspace 的请求优先使用它。"""
+    """切换当前工作区。后续所有依赖 find_valid_workspace 的请求优先使用它。
+
+    MCP 多工作区流程：list_workspaces 查看 → set_current_workspace(ws_id) 切换 →
+    list_documents / search_documents / create_note 等自动作用在该工作区。
+
+    注：若客户端通过 /mcp/{ws_id} 锁定端点接入，此 tool 会被拒绝（403）。
+    """
+    if get_locked_workspace():
+        raise HTTPException(
+            status_code=403,
+            detail="Workspace locked via /mcp/{ws_id} endpoint — switching is disabled",
+        )
     entry = svc._registry.get(body.ws_id)
     if not entry:
         raise HTTPException(status_code=404, detail="Workspace not found")
     if not (Path(entry["path"]) / ".llmwiki" / "index.db").exists():
         raise HTTPException(status_code=400, detail="Workspace DB not found")
     set_current_workspace(body.ws_id)
-    return {"status": "ok", "ws_id": body.ws_id}
+    ws = await svc.get_workspace(body.ws_id)
+    return {
+        "status": "ok",
+        "ws_id": body.ws_id,
+        "name": ws["name"] if ws else "",
+        "path": entry["path"],
+    }
 
 
-@router.get("/current", operation_id="get_current_workspace", summary="获取当前工作区 ID(未设置则回退到第一个有效工作区)")
+@router.get("/current", operation_id="get_current_workspace", summary="查询当前工作区 ID(未设置则回退到第一个有效工作区)")
 async def get_current(
     svc: LocalWikiService = Depends(get_service),
 ):
-    """获取当前工作区 ID。"""
+    """查询当前工作区 ID。未显式设置时回退到第一个有效工作区。"""
     cur = get_current_workspace() or find_valid_workspace(svc)
     return {"ws_id": cur}
 

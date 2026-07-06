@@ -111,7 +111,7 @@ export default function Dashboard() {
                                         dataSource={stats.pending}
                                         renderItem={(d) => (
                                             <List.Item>
-                                                <Link to={`/documents/${d.id}`} style={{ flex: 1, display: "flex", alignItems: "center", gap: 8 }}>
+                                                <Link to={`/w/${current}/documents/${d.id}`} style={{ flex: 1, display: "flex", alignItems: "center", gap: 8 }}>
                                                     <span style={{ width: 7, height: 7, borderRadius: "50%", background: KIND_COLOR[d.source_kind] || "#999", display: "inline-block" }} />
                                                     <Text style={{ flex: 1 }}>{d.title || d.filename}</Text>
                                                     <Tag color={STATUS_COLOR[d.status] || "#999"} style={{ color: "#fff", border: "none" }}>
@@ -131,7 +131,7 @@ export default function Dashboard() {
                                     dataSource={stats.recent}
                                     renderItem={(d) => (
                                         <List.Item>
-                                            <Link to={`/documents/${d.id}`} style={{ flex: 1, display: "flex", alignItems: "center", gap: 8 }}>
+                                            <Link to={`/w/${current}/documents/${d.id}`} style={{ flex: 1, display: "flex", alignItems: "center", gap: 8 }}>
                                                 <span style={{ width: 7, height: 7, borderRadius: "50%", background: KIND_COLOR[d.source_kind] || "#999", display: "inline-block" }} />
                                                 <Text style={{ flex: 1 }} ellipsis>{d.title || d.filename}</Text>
                                                 <Text type="secondary" style={{ fontSize: 11 }}>{relativeTime(d.updated_at)}</Text>
@@ -168,9 +168,9 @@ export default function Dashboard() {
 
                             <Card size="small" title="快速入口">
                                 <Space wrap>
-                                    <Link to="/documents"><Button icon={<FileTextOutlined />}>浏览文档</Button></Link>
-                                    <Link to="/search"><Button icon={<SearchOutlined />}>搜索</Button></Link>
-                                    <Link to="/graph"><Button icon={<ApartmentOutlined />}>图谱</Button></Link>
+                                    <Link to={`/w/${current}/documents`}><Button icon={<FileTextOutlined />}>浏览文档</Button></Link>
+                                    <Link to={`/w/${current}/search`}><Button icon={<SearchOutlined />}>搜索</Button></Link>
+                                    <Link to={`/w/${current}/graph`}><Button icon={<ApartmentOutlined />}>图谱</Button></Link>
                                 </Space>
                             </Card>
                         </Col>

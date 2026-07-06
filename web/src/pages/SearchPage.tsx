@@ -32,7 +32,7 @@ export default function SearchPage() {
     };
 
     const linkFor = (r: SearchResult) =>
-        `/documents/${r.doc_id}?chunk=${r.chunk_index ?? 0}&query=${encodeURIComponent(query)}`;
+        `/w/${current}/documents/${r.doc_id}?chunk=${r.chunk_index ?? 0}&query=${encodeURIComponent(query)}`;
 
     const handleReindex = async () => {
         setReindexing(true);

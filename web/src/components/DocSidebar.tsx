@@ -1,5 +1,5 @@
 import { Card, Tag, Space, Typography, Empty, Tooltip } from "antd";
-import { Link } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import type { Document, ReferencesData, Highlight } from "../lib/types";
 import { parseTags, parseHighlights, parseMetadata } from "../lib/types";
 import {
@@ -24,9 +24,10 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 }
 
 function RefItem({ r }: { r: ReferencesData["outgoing"][number] }) {
+    const { wsId = "" } = useParams<{ wsId: string }>();
     return (
         <div style={{ padding: "3px 0" }}>
-            <Link to={`/documents/${r.id}`} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <Link to={`/w/${wsId}/documents/${r.id}`} style={{ display: "flex", alignItems: "center", gap: 4 }}>
                 <Tag color={r.type === "cites" ? "blue" : "green"} bordered={false} style={{ fontSize: 10, margin: 0, lineHeight: "16px" }}>
                     {r.type === "cites" ? "引" : "链"}
                 </Tag>

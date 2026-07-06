@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Input, Button, Card, List, Typography, message, Space, Popconfirm, Tag, Tabs, Collapse, Tooltip, Radio } from "antd";
 import {
     PlusOutlined,
@@ -18,12 +18,12 @@ import { relativeTime } from "../lib/format";
 
 const { Text, Title, Paragraph } = Typography;
 
-// ── 自动推断服务地址 ───────────────────────────── 
+// ── 自动推断服务地址 ─────────────────────────────
 
 function useServerUrl(): { localhost: string; lan: string; mcpPath: string } {
     const origin = window.location.origin;  // 如 http://192.168.1.5:8000
     const mcpPath = "/mcp";
-    
+
     // 如果是 localhost 访问，用 localhost；否则用当前 origin
     const isLocalhost = origin.includes("localhost") || origin.includes("127.0.0.1");
     return {
@@ -40,7 +40,7 @@ export default function WorkspaceManager() {
     const [creating, setCreating] = useState(false);
     const [transportType, setTransportType] = useState<"http" | "command">("http");
     const serverUrl = useServerUrl();
-    
+
     // MCP 端点地址（如果是局域网访问就用局域网地址，否则用 localhost）
     const mcpHttpUrl = serverUrl.lan || serverUrl.localhost;
 
@@ -124,13 +124,23 @@ export default function WorkspaceManager() {
                                             <Text type="secondary" style={{ fontSize: 12, fontFamily: "monospace" }}>{w.path}</Text>
                                             <br />
                                             <Text type="secondary" style={{ fontSize: 11 }}>
-                                                kind: {w.kind} · 创建 {relativeTime(w.created_at)}
+                                                ID: <Text code style={{ fontSize: 11 }}>{w.id}</Text> · kind: {w.kind} · 创建 {relativeTime(w.created_at)}
                                             </Text>
                                         </div>
                                         <Space>
+                                            <Tooltip title="复制此工作区的锁定 MCP URL（/mcp/{id}，硬隔离）">
+                                                <Button
+                                                    size="small"
+                                                    icon={<CopyOutlined />}
+                                                    onClick={() => {
+                                                        navigator.clipboard.writeText(`${mcpHttpUrl}/${w.id}`);
+                                                        message.success("已复制锁定 MCP URL");
+                                                    }}
+                                                />
+                                            </Tooltip>
                                             {!isCurrent && (
                                                 <Button size="small" onClick={() => switchTo(w.id)}>
-                                                    设为当前
+                                                    切换并进入
                                                 </Button>
                                             )}
                                             <Popconfirm
@@ -155,7 +165,7 @@ export default function WorkspaceManager() {
                     <Space>
                         <ApiOutlined />
                         <span>MCP 配置</span>
-                        <Tag color="blue">17 个 Tool</Tag>
+                        <Tag color="blue">19 个 Tool</Tag>
                     </Space>
                 }
                 size="small"
@@ -187,6 +197,24 @@ export default function WorkspaceManager() {
                         </Tooltip>
                     </Radio.Group>
                 </Space>
+
+                {/* 两种接入模式说明 */}
+                <Card
+                    size="small"
+                    type="inner"
+                    style={{ marginBottom: 12, background: "#f6ffed", border: "1px solid #b7eb8f" }}
+                >
+                    <Text style={{ fontSize: 13, lineHeight: 1.9 }}>
+                        💡 <Text strong>两种接入模式</Text>：
+                        <br />
+                        1. <Text strong>灵活模式</Text> — 端点 <Text code>{mcpHttpUrl}</Text>，
+                        接入后用 <Text code>list_workspaces</Text> + <Text code>set_current_workspace(ws_id)</Text> 切换工作区。
+                        <br />
+                        2. <Text strong>锁定模式</Text> — 端点 <Text code>{mcpHttpUrl}/{"{ws_id}"}</Text>，
+                        硬隔离到指定工作区，<Text code>set_current_workspace</Text> 被禁用（403）。
+                        适合给固定工作区的 AI agent（点工作区右侧复制按钮获取该工作区的锁定 URL）。
+                    </Text>
+                </Card>
 
                 {/* MCP 端点信息 - 自动识别 */}
                 <Card
@@ -441,11 +469,11 @@ const VSCODE_STDIO_STEPS: GuideStep[] = [
     },
 ];
 
-// 占位符 — 运行时由 hook 替换为实际 URL
-
 // ── 根据 mcpUrl 动态生成各客户端步骤 ─────────────
 
 function buildClaudeHttpSteps(mcpUrl: string): GuideStep[] {
+    const serverName = "llmwiki";
+    const serverCfg: Record<string, unknown> = { type: "http", url: mcpUrl };
     return [
         {
             label: "打开配置文件",
@@ -459,25 +487,36 @@ function buildClaudeHttpSteps(mcpUrl: string): GuideStep[] {
         },
         {
             label: "添加 MCP Server 配置",
-            desc: <MCPJsonBlock code={JSON.stringify({ mcpServers: { llmwiki: { type: "http", url: mcpUrl } } }, null, 2)} />,
+            desc: <MCPJsonBlock code={JSON.stringify({ mcpServers: { [serverName]: serverCfg } }, null, 2)} />,
         },
         {
             label: "重启 Claude Desktop",
-            desc: "保存配置文件后，完全退出并重新启动 Claude Desktop。启动后点击输入框旁的 🔌 图标，应能看到 17 个 LLM Wiki Tool。",
+            desc: "保存配置文件后，完全退出并重新启动 Claude Desktop。启动后点击输入框旁的 🔌 图标，应能看到 19 个 LLM Wiki Tool。",
         },
         {
             label: "使用 CLI 快速添加",
             desc: (
                 <div>
                     <Text>也可用一行命令：</Text>
-                    <MCPShellBlock code={`claude mcp add --transport http llmwiki ${mcpUrl}`} />
+                    <MCPShellBlock code={`claude mcp add --transport http ${serverName} ${mcpUrl}`} />
                 </div>
+            ),
+        },
+        {
+            label: "切换工作区",
+            desc: (
+                <Text>
+                    接入后先调用 <Text code>list_workspaces</Text> 查看工作区，再用
+                    <Text code> set_current_workspace(ws_id)</Text> 切换到目标工作区。
+                </Text>
             ),
         },
     ];
 }
 
 function buildVscodeHttpSteps(mcpUrl: string): GuideStep[] {
+    const serverName = "llmwiki";
+    const serverCfg: Record<string, unknown> = { type: "http", url: mcpUrl };
     return [
         {
             label: "创建 .mcp.json",
@@ -489,16 +528,26 @@ function buildVscodeHttpSteps(mcpUrl: string): GuideStep[] {
         },
         {
             label: "写入配置",
-            desc: <MCPJsonBlock code={JSON.stringify({ servers: { llmwiki: { type: "http", url: mcpUrl } } }, null, 2)} />,
+            desc: <MCPJsonBlock code={JSON.stringify({ servers: { [serverName]: serverCfg } }, null, 2)} />,
         },
         {
             label: "重新加载 VS Code",
             desc: "保存后执行 Cmd/Ctrl+Shift+P → Developer: Reload Window。之后在 Copilot Chat 中即可调用 LLM Wiki 的知识管理工具。",
         },
+        {
+            label: "切换工作区",
+            desc: (
+                <Text>
+                    接入后先调用 <Text code>list_workspaces</Text> 查看工作区，再用
+                    <Text code> set_current_workspace(ws_id)</Text> 切换到目标工作区。
+                </Text>
+            ),
+        },
     ];
 }
 
 function buildCursorSteps(mcpUrl: string): GuideStep[] {
+    const serverName = "llmwiki";
     return [
         {
             label: "打开 Cursor Settings",
@@ -509,7 +558,7 @@ function buildCursorSteps(mcpUrl: string): GuideStep[] {
             desc: (
                 <div>
                     <Text strong>Name: </Text>
-                    <Text code>llmwiki</Text>
+                    <Text code>{serverName}</Text>
                     <br />
                     <Text strong>Type: </Text>
                     <Text code>HTTP</Text>
@@ -521,7 +570,16 @@ function buildCursorSteps(mcpUrl: string): GuideStep[] {
         },
         {
             label: "验证连接",
-            desc: "添加后 Cursor 会自动尝试连接。成功后在 MCP 面板会显示绿色状态灯和 17 个可用 Tool。",
+            desc: "添加后 Cursor 会自动尝试连接。成功后在 MCP 面板会显示绿色状态灯和 19 个可用 Tool。",
+        },
+        {
+            label: "切换工作区",
+            desc: (
+                <Text>
+                    接入后先调用 <Text code>list_workspaces</Text> 查看工作区，再用
+                    <Text code> set_current_workspace(ws_id)</Text> 切换到目标工作区。
+                </Text>
+            ),
         },
     ];
 }
@@ -542,10 +600,20 @@ function buildGenericSteps(mcpUrl: string): GuideStep[] {
             ),
         },
         {
+            label: "切换工作区",
+            desc: (
+                <Text>
+                    接入后先调用 <Text code>list_workspaces</Text> 查看工作区，再用
+                    <Text code> set_current_workspace(ws_id)</Text> 切换到目标工作区。
+                    可用 <Text code>get_current_workspace</Text> 随时查询当前工作区。
+                </Text>
+            ),
+        },
+        {
             label: "手动验证 (curl)",
             desc: (
                 <MCPJsonBlock
-                    code={`# 列出所有 Tool\ncurl -X POST ${mcpUrl} \\\\\n  -H "Content-Type: application/json" \\\\\n  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'\n\n# 调用 guide tool\ncurl -X POST ${mcpUrl} \\\\\n  -H "Content-Type: application/json" \\\\\n  -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"guide","arguments":{}}}'`}
+                    code={`# 列出所有 Tool\ncurl -X POST ${mcpUrl} -H "Content-Type: application/json" -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'\n\n# 调用 guide tool\ncurl -X POST ${mcpUrl} -H "Content-Type: application/json" -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"guide","arguments":{}}}'`}
                 />
             ),
         },
@@ -564,6 +632,8 @@ const MCP_TOOLS: ToolInfo[] = [
     { name: "guide", description: "获取 LLM Wiki 使用指南（新手第一步应调用此 tool）", category: "指南" },
     { name: "list_workspaces", description: "列出所有已注册的工作区（知识库）", category: "工作区" },
     { name: "create_workspace", description: "创建并初始化新的工作区（知识库）", category: "工作区" },
+    { name: "get_current_workspace", description: "查询当前工作区 ID（未设置则回退到第一个有效工作区）", category: "工作区" },
+    { name: "set_current_workspace", description: "切换当前工作区（后续操作均作用于该工作区）", category: "工作区" },
     { name: "list_documents", description: "列出工作区中的文档，可按 source_kind、status、entity_type 和路径过滤", category: "文档" },
     { name: "get_document", description: "获取单个文档的元数据（不含全文内容）", category: "文档" },
     { name: "read_document", description: "读取文档正文内容", category: "文档" },
@@ -586,7 +656,7 @@ function MCPToolList() {
     return (
         <div>
             <Paragraph type="secondary" style={{ marginBottom: 12 }}>
-                以下 17 个 Tool 全部由 REST 路由自动生成，无需手动编写 MCP handler。
+                以下 19 个 Tool 全部由 REST 路由自动生成，无需手动编写 MCP handler。
             </Paragraph>
             {TOOL_CATEGORIES.map((cat) => {
                 const tools = MCP_TOOLS.filter((t) => t.category === cat);

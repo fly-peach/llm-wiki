@@ -1,9 +1,11 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { api } from "./api";
 import type { Workspace } from "./types";
 
 interface WorkspaceCtxValue {
     workspaces: Workspace[];
+    /** 当前工作区 ID — 来自 URL /w/:wsId，未在 ws 路由下时为空串 */
     current: string;
     loaded: boolean;
     switchTo: (wsId: string) => Promise<void>;
@@ -13,27 +15,39 @@ interface WorkspaceCtxValue {
 const WorkspaceCtx = createContext<WorkspaceCtxValue | null>(null);
 
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
+    const loc = useLocation();
+    const nav = useNavigate();
     const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
-    const [current, setCurrent] = useState("");
     const [loaded, setLoaded] = useState(false);
+
+    // current 来自 URL: /w/:wsId/...
+    const current = useMemo(() => {
+        const m = loc.pathname.match(/^\/w\/([^/]+)/);
+        return m ? m[1] : "";
+    }, [loc.pathname]);
 
     const refresh = async () => {
         const ws = await api.listWorkspaces().catch(() => [] as Workspace[]);
         setWorkspaces(ws);
-        const cur = await api.getCurrentWorkspace().catch(() => ({ ws_id: "" }));
-        setCurrent(cur.ws_id);
+        setLoaded(true);
     };
 
     useEffect(() => {
         (async () => {
             await refresh();
-            setLoaded(true);
         })();
     }, []);
 
+    // URL 携带 wsId 时同步到后端全局 current，保证后端 API 用对工作区
+    useEffect(() => {
+        if (current) {
+            api.setCurrentWorkspace(current).catch(() => {});
+        }
+    }, [current]);
+
     const switchTo = async (wsId: string) => {
         await api.setCurrentWorkspace(wsId);
-        setCurrent(wsId);
+        nav(`/w/${wsId}`);
     };
 
     return (

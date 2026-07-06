@@ -4,12 +4,19 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import AsyncGenerator
 
-from fastapi import Depends, FastAPI, Query
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.cors import CORSMiddleware
 from starlette.responses import FileResponse
 
-from deps import find_valid_workspace, get_service, reset_service
+from deps import (
+    _ws_db_exists,
+    find_valid_workspace,
+    get_service,
+    reset_locked_workspace,
+    reset_service,
+    set_locked_workspace,
+)
 from routes.workspaces import router as workspaces_router, _watcher_tasks
 from routes.upload import router as upload_router
 from routes.reindex import router as reindex_router
@@ -123,6 +130,7 @@ async def process_single(
 MCP_INCLUDE_OPERATIONS = [
     "guide",
     "list_workspaces", "create_workspace",
+    "get_current_workspace", "set_current_workspace",
     "list_documents", "get_document", "read_document",
     "create_note", "update_document_content", "update_document_metadata",
     "delete_document",
@@ -133,10 +141,34 @@ MCP_INCLUDE_OPERATIONS = [
 mcp = FastApiMCP(
     app,
     name="LLM Wiki MCP",
-    description="LLM Wiki 知识管理工具集（复用 REST 接口，同进程 ASGI 直连）",
+    description="LLM Wiki 知识管理工具集（复用 REST 接口，同进程 ASGI 直连）。"
+                "多工作区：先 list_workspaces 查看可用工作区，再用 set_current_workspace 切换。",
     include_operations=MCP_INCLUDE_OPERATIONS,
+    headers=["authorization"],
 )
 mcp.mount_http(mount_path="/mcp")
+
+
+# ── MCP 锁定端点：/mcp/{ws_id} 硬隔离到指定工作区 ────────────
+# 客户端配 /mcp/{ws_id} 即锁定到该工作区：find_valid_workspace 总返回它，
+# set_current_workspace 切换被拒绝（403）。与 /mcp（灵活模式，可切换）并存。
+_mcp_transport = mcp._http_transport
+
+
+@app.api_route(
+    "/mcp/{ws_id}",
+    methods=["GET", "POST", "DELETE"],
+    include_in_schema=False,
+)
+async def mcp_scoped_http(ws_id: str, request: Request):
+    """工作区隔离的 MCP 端点。锁定到 ws_id，set_current_workspace 切换被拒绝。"""
+    if not _ws_db_exists(get_service(), ws_id):
+        raise HTTPException(status_code=404, detail=f"Workspace not found: {ws_id}")
+    token = set_locked_workspace(ws_id)
+    try:
+        return await _mcp_transport.handle_fastapi_request(request)
+    finally:
+        reset_locked_workspace(token)
 
 
 # ── 生产模式：挂载前端静态文件 ──────────────────────
